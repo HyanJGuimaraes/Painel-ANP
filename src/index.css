@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* LIGHT MODE (Default) */
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 199 89% 48%;
+  /* Cerulean Blue */
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215 16% 47%;
+
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222 47% 11%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 199 89% 48%;
+
+  --radius: 0.5rem;
+
+  /* B2B Signals (Light Mode) */
+  --favorable: 142 76% 36%;
+  --favorable-foreground: 356 29% 95%;
+  --unfavorable: 0 84% 60%;
+  --unfavorable-foreground: 356 29% 95%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 356 29% 95%;
+
+  /* Chart Colors */
+  --chart-sp: 199 89% 48%;
+  --chart-mg: 142 76% 36%;
+  --chart-go: 38 92% 50%;
+  /* --chart-mt: 280 100% 70%; */
+}
+
+.dark {
+  /* DARK MODE (Trader Theme) */
+  --background: 220 30% 6%;
+  --foreground: 190 100% 95%;
+
+  --card: 220 25% 10%;
+  --card-foreground: 190 100% 95%;
+
+  --popover: 220 25% 10%;
+  --popover-foreground: 190 100% 95%;
+
+  --primary: 190 100% 50%;
+  --primary-foreground: 220 30% 6%;
+
+  --secondary: 215 15% 20%;
+  --secondary-foreground: 220 20% 80%;
+
+  --muted: 215 20% 15%;
+  --muted-foreground: 215 20% 50%;
+
+  --accent: 190 100% 50%;
+  --accent-foreground: 220 30% 6%;
+
+  --destructive: 0 100% 60%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 215 15% 20%;
+  --input: 215 15% 20%;
+  --ring: 190 100% 50%;
+
+  /* B2B Signals (Dark Mode) */
+  --favorable: 150 100% 45%;
+  --favorable-foreground: 220 30% 6%;
+  --unfavorable: 0 100% 60%;
+  --unfavorable-foreground: 210 40% 98%;
+  --warning: 45 100% 50%;
+  --warning-foreground: 220 30% 6%;
+}
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .parity-favorable {
+    @apply bg-favorable/20 text-favorable font-semibold;
+  }
+
+  .parity-unfavorable {
+    @apply bg-unfavorable/20 text-unfavorable font-semibold;
+  }
+
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg;
+  }
+
+  .stat-glow {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+  }
+
+  .pause {
+    animation-play-state: paused;
+  }
+}
