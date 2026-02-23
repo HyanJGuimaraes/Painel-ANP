@@ -58,10 +58,10 @@ def load_and_transform_data(file_path: str, granularity: str = 'state') -> pd.Da
         base_map['MUNICÍPIO'] = 'municipio'
         base_map['REGIAO'] = 'regiao'
     
-    df.rename(columns=base_map, inplace=True)
-    
-    # Clean headers
+    # Clean headers first so the rename map works properly
     df.columns = [c.strip() if isinstance(c, str) else c for c in df.columns]
+
+    df.rename(columns=base_map, inplace=True)
     
     # Ensure all expected columns exist (fill missing with None)
     distribution_cols = [

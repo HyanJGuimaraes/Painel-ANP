@@ -14,7 +14,7 @@ def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = 'anp_histor
 
     # Create engine directly from URL
     print(f"Connecting to database...")
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, insertmanyvalues_page_size=50)
     
     # Check for existing table and schema
     inspector = inspect(engine)
@@ -48,19 +48,17 @@ def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = "anp_histor
         return
 
     print(f"Connecting to DB: {db_url.split('@')[-1] if '@' in db_url else 'SQLite'}") # Mask password
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, insertmanyvalues_page_size=50)
     
     try:
-        # Use 'append' to add new weekly data
-        # 'replace' would wipe history! valid for historical import, but for weekly update?
-        # If weekly update overlaps, we might have duplicates.
-        # Ideally we should upsert. But for now, let's assume 'append' and we handle duplicates later or ignore.
-        # Actually, the 'main.py' is a "Weekly Update". 
-        # If we use 'append', we might duplicate data if we run it twice.
-        # Let's use 'append' for now.
-        
+        # If table exists, drop columns from df that are not in the DB schema
+        inspector = inspect(engine)
+        if table_name in inspector.get_table_names():
+            db_columns = [col['name'] for col in inspector.get_columns(table_name)]
+            df = df[[col for col in df.columns if col in db_columns]]
+            
         print(f"Appending {len(df)} rows to {table_name}...")
-        df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=100, method='multi')
+        df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=50)
         print("Data loaded successfully.")
     except Exception as e:
         print(f"Failed to load data to DB: {e}")
