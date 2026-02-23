@@ -8,6 +8,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import LoginModal from "@/components/LoginModal";
 
 export default function Landing() {
     const navigate = useNavigate();
@@ -15,6 +16,11 @@ export default function Landing() {
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-x-hidden font-sans selection:bg-primary/30 py-12">
+
+            {/* Top Right Actions */}
+            <div className="absolute top-6 right-6 z-50">
+                <LoginModal />
+            </div>
 
             {/* Background Effects */}
             <div className="absolute inset-0 z-0 overflow-hidden">

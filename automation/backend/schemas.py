@@ -48,3 +48,27 @@ class FuelRecordRegion(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Auth Schemas ---
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    role: Optional[str] = "master"
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
