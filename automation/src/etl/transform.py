@@ -52,6 +52,7 @@ def load_and_transform_data(file_path: str, granularity: str = 'state') -> pd.Da
         base_map['REGIAO'] = 'regiao'
     elif granularity == 'region':
         base_map['REGIÃO'] = 'regiao'
+        base_map['REGIAO'] = 'regiao'
     elif granularity == 'municipality':
         base_map['ESTADO'] = 'estado'
         base_map['MUNICÍPIO'] = 'municipio'

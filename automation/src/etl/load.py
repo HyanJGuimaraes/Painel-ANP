@@ -60,7 +60,7 @@ def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = "anp_histor
         # Let's use 'append' for now.
         
         print(f"Appending {len(df)} rows to {table_name}...")
-        df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=500, method='multi')
+        df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=100, method='multi')
         print("Data loaded successfully.")
     except Exception as e:
         print(f"Failed to load data to DB: {e}")
