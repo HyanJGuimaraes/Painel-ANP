@@ -6,14 +6,17 @@ def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = 'anp_histor
     """
     Loads transformed DataFrame into database (SQLite or Postgres) with incremental logic.
     """
-    # Validate table_name (simple identifier check)
+    if df.empty:
+        print("Dataframe is empty, skipping load.")
+        return
+
     # Validate table_name against whitelist (Security Hardening)
     ALLOWED_TABLES = {'anp_history_states', 'anp_history_regions', 'anp_history_municipalities'}
     if table_name not in ALLOWED_TABLES:
         raise ValueError(f"Invalid table name: {table_name}. Must be one of {ALLOWED_TABLES}")
 
     # Create engine directly from URL
-    print(f"Connecting to database...")
+    print(f"Connecting to DB: {db_url.split('@')[-1] if '@' in db_url else 'SQLite'} (Masked)")
     engine = create_engine(db_url, insertmanyvalues_page_size=50)
     
     # Check for existing table and schema
@@ -32,28 +35,24 @@ def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = 'anp_histor
             table_exists = False # Update flag
             
     # Incremental Logic
-    # If table exists (and matches schema), find max date
     if table_exists:
         with engine.connect() as conn:
-            # table_name is validated above
             result = conn.execute(text(f"SELECT MAX(data_final) FROM {table_name}"))
             max_date = result.scalar()
-                
-def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = "anp_history_states"):
-    """
-    Loads DataFrame to Postgres/SQLite.
-    """
-    if df.empty:
-        print("Dataframe is empty, skipping load.")
-        return
+        
+        if max_date is not None:
+            max_db_dt = pd.to_datetime(max_date)
+            # Filter df to only keep rows newer than what's in DB
+            df = df[df['data_final'] > max_db_dt]
+            print(f"Incremental Load: DB has data up to {max_db_dt.date()}. New rows to insert: {len(df)}")
+            
+        if df.empty:
+            print("No new data to load. Everything is up to date.")
+            return
 
-    print(f"Connecting to DB: {db_url.split('@')[-1] if '@' in db_url else 'SQLite'}") # Mask password
-    engine = create_engine(db_url, insertmanyvalues_page_size=50)
-    
     try:
         # If table exists, drop columns from df that are not in the DB schema
-        inspector = inspect(engine)
-        if table_name in inspector.get_table_names():
+        if table_exists:
             db_columns = [col['name'] for col in inspector.get_columns(table_name)]
             df = df[[col for col in df.columns if col in db_columns]]
             

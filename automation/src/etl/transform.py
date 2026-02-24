@@ -33,7 +33,9 @@ def load_and_transform_data(file_path: str, granularity: str = 'state') -> pd.Da
             print(f"Failed to read Excel file: {e2}")
             return pd.DataFrame()
 
-    # Normalize Headers based on granularity
+    # Clean headers first so the rename map works properly
+    df.columns = [str(c).strip().upper() for c in df.columns]
+
     base_map = {
         'DATA INICIAL': 'data_inicial',
         'DATA FINAL': 'data_final',
@@ -44,24 +46,55 @@ def load_and_transform_data(file_path: str, granularity: str = 'state') -> pd.Da
         'DESVIO PADRÃO REVENDA': 'desvio_padrao_revenda',
         'PREÇO MÍNIMO REVENDA': 'preco_min_revenda',
         'PREÇO MÁXIMO REVENDA': 'preco_max_revenda',
-        'COEF DE VARIAÇÃO REVENDA': 'coef_variacao_revenda'
+        'COEF DE VARIAÇÃO REVENDA': 'coef_variacao_revenda',
+        'PRECO MEDIO REVENDA': 'preco_medio_revenda',
+        'DESVIO PADRAO REVENDA': 'desvio_padrao_revenda',
+        'PRECO MINIMO REVENDA': 'preco_min_revenda',
+        'PRECO MAXIMO REVENDA': 'preco_max_revenda',
+        'COEF DE VARIACAO REVENDA': 'coef_variacao_revenda'
     }
     
     if granularity == 'state':
         base_map['ESTADOS'] = 'estado'
+        base_map['ESTADO'] = 'estado'
         base_map['REGIAO'] = 'regiao'
+        base_map['REGIÃO'] = 'regiao'
     elif granularity == 'region':
         base_map['REGIÃO'] = 'regiao'
         base_map['REGIAO'] = 'regiao'
     elif granularity == 'municipality':
         base_map['ESTADO'] = 'estado'
         base_map['MUNICÍPIO'] = 'municipio'
+        base_map['MUNICIPIO'] = 'municipio'
         base_map['REGIAO'] = 'regiao'
-    
-    # Clean headers first so the rename map works properly
-    df.columns = [c.strip() if isinstance(c, str) else c for c in df.columns]
+        base_map['REGIÃO'] = 'regiao'
 
     df.rename(columns=base_map, inplace=True)
+    
+    # Derivar regiao se faltar
+    if granularity == 'municipality' and 'regiao' not in df.columns and 'estado' in df.columns:
+        STATE_TO_REGION = {
+            'ACRE': 'NORTE', 'ALAGOAS': 'NORDESTE', 'AMAPA': 'NORTE', 'AMAPÁ': 'NORTE',
+            'AMAZONAS': 'NORTE', 'BAHIA': 'NORDESTE', 'CEARA': 'NORDESTE', 'CEARÁ': 'NORDESTE',
+            'DISTRITO FEDERAL': 'CENTRO-OESTE', 'ESPIRITO SANTO': 'SUDESTE', 
+            'ESPÍRITO SANTO': 'SUDESTE', 'GOIAS': 'CENTRO-OESTE', 'GOIÁS': 'CENTRO-OESTE',
+            'MARANHAO': 'NORDESTE', 'MARANHÃO': 'NORDESTE', 'MATO GROSSO': 'CENTRO-OESTE',
+            'MATO GROSSO DO SUL': 'CENTRO-OESTE', 'MINAS GERAIS': 'SUDESTE', 'PARA': 'NORTE',
+            'PARÁ': 'NORTE', 'PARAIBA': 'NORDESTE', 'PARAÍBA': 'NORDESTE', 'PARANA': 'SUL',
+            'PARANÁ': 'SUL', 'PERNAMBUCO': 'NORDESTE', 'PIAUI': 'NORDESTE', 'PIAUÍ': 'NORDESTE',
+            'RIO DE JANEIRO': 'SUDESTE', 'RIO GRANDE DO NORTE': 'NORDESTE',
+            'RIO GRANDE DO SUL': 'SUL', 'RONDONIA': 'NORTE', 'RONDÔNIA': 'NORTE',
+            'RORAIMA': 'NORTE', 'SANTA CATARINA': 'SUL', 'SAO PAULO': 'SUDESTE', 
+            'SÃO PAULO': 'SUDESTE', 'SERGIPE': 'NORDESTE', 'TOCANTINS': 'NORTE',
+            # Add ACs just in case
+            'AC': 'NORTE', 'AL': 'NORDESTE', 'AP': 'NORTE', 'AM': 'NORTE', 'BA': 'NORDESTE',
+            'CE': 'NORDESTE', 'DF': 'CENTRO-OESTE', 'ES': 'SUDESTE', 'GO': 'CENTRO-OESTE',
+            'MA': 'NORDESTE', 'MT': 'CENTRO-OESTE', 'MS': 'CENTRO-OESTE', 'MG': 'SUDESTE',
+            'PA': 'NORTE', 'PB': 'NORDESTE', 'PR': 'SUL', 'PE': 'NORDESTE', 'PI': 'NORDESTE',
+            'RJ': 'SUDESTE', 'RN': 'NORDESTE', 'RS': 'SUL', 'RO': 'NORTE', 'RR': 'NORTE',
+            'SC': 'SUL', 'SP': 'SUDESTE', 'SE': 'NORDESTE', 'TO': 'NORTE'
+        }
+        df['regiao'] = df['estado'].map(lambda x: STATE_TO_REGION.get(str(x).strip().upper(), None))
     
     # Ensure all expected columns exist (fill missing with None)
     distribution_cols = [
@@ -98,9 +131,23 @@ def load_and_transform_data(file_path: str, granularity: str = 'state') -> pd.Da
     
     # Date conversion
     cols_to_date = ['data_inicial', 'data_final']
+    
+    def parse_excel_date(x):
+        if pd.isna(x):
+            return pd.NaT
+        try:
+            val = float(x)
+            # Handle Excel serial dates (typically > 30000 for year 1980+)
+            if 30000 < val < 60000:
+                return pd.to_datetime(val, origin='1899-12-30', unit='D')
+        except (ValueError, TypeError):
+            pass
+        # Standard pandas fallback for strings/datetime objects
+        return pd.to_datetime(x, errors='coerce', dayfirst=True)
+
     for col in cols_to_date:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors='coerce')
+            df[col] = df[col].apply(parse_excel_date)
     
     # Drop rows where keys are missing
     if granularity == 'state':
