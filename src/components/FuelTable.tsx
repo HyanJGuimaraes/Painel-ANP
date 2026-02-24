@@ -19,9 +19,10 @@ import SignalBadge from "./SignalBadge";
 
 interface FuelTableProps {
   data: FuelRecord[];
+  viewLevel?: "estado" | "municipio";
 }
 
-type SortKey = keyof FuelRecord | 'dates';
+type SortKey = keyof FuelRecord | 'dates' | 'localidade';
 type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
@@ -29,7 +30,7 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-export default function FuelTable({ data }: FuelTableProps) {
+export default function FuelTable({ data, viewLevel = "estado" }: FuelTableProps) {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'headroom', direction: 'desc' });
 
   const handleSort = (key: SortKey) => {
@@ -47,13 +48,19 @@ export default function FuelTable({ data }: FuelTableProps) {
       const dateA = parseShortDate(a.datas).getTime();
       const dateB = parseShortDate(b.datas).getTime();
       comparison = dateA - dateB;
-    } else if (key === 'estado') {
-      comparison = a.estado.localeCompare(b.estado);
+    } else if (key === 'localidade') {
+      const valA = viewLevel === "municipio" ? (a.municipio || a.estado) : a.estado;
+      const valB = viewLevel === "municipio" ? (b.municipio || b.estado) : b.estado;
+      comparison = valA.localeCompare(valB);
     } else {
-      // Numeric sort
-      const valA = (a[key as keyof FuelRecord] as number) || 0;
-      const valB = (b[key as keyof FuelRecord] as number) || 0;
-      comparison = valA - valB;
+      // Numeric sort or string
+      const valA: any = a[key as keyof FuelRecord] || 0;
+      const valB: any = b[key as keyof FuelRecord] || 0;
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        comparison = valA.localeCompare(valB);
+      } else {
+        comparison = (valA as number) - (valB as number);
+      }
     }
 
     return direction === 'asc' ? comparison : -comparison;
@@ -106,7 +113,7 @@ export default function FuelTable({ data }: FuelTableProps) {
           <Table>
             <TableHeader className="bg-slate-900/80 backdrop-blur-md sticky top-0 z-10 shadow-sm border-b border-white/10">
               <TableRow className="hover:bg-transparent border-white/10">
-                <HeaderCell label="Estado" sortKey="estado" />
+                <HeaderCell label={viewLevel === "estado" ? "Estado" : "Município"} sortKey="localidade" />
                 <HeaderCell label="Data" sortKey="dates" />
                 <HeaderCell label="Etanol" sortKey="etanol" align="right" colorClass="text-cyan-400" />
                 <HeaderCell label="Gasolina" sortKey="gasolina" align="right" colorClass="text-yellow-500" />
@@ -159,8 +166,11 @@ export default function FuelTable({ data }: FuelTableProps) {
             <TableBody className="font-mono text-xs">
               {sortedData.map((record, i) => (
                 <TableRow key={i} className="hover:bg-primary/5 border-border/50 transition-colors">
-                  <TableCell className="font-bold text-foreground">{record.estado}</TableCell>
-                  <TableCell className="text-muted-foreground">{record.datas}</TableCell>
+                  <TableCell className="font-bold text-foreground max-w-[150px] truncate">
+                    {viewLevel === "estado" ? record.estado : record.municipio}
+                    {viewLevel === "municipio" && <span className="text-[10px] text-slate-500 ml-1 block">{record.estado}</span>}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">{record.datas}</TableCell>
                   <TableCell className="text-right text-cyan-300 font-medium">
                     R$ {record.etanol.toFixed(2)}
                   </TableCell>

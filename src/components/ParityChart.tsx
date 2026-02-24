@@ -6,16 +6,22 @@ import { useMemo } from "react";
 
 interface ParityChartProps {
   data: FuelRecord[];
-  estado: string;
+  estado?: string;
+  municipio?: string;
 }
 
-export default function ParityChart({ data, estado }: ParityChartProps) {
-  const abbr = STATE_ABBREVIATIONS[estado] || estado.slice(0, 2);
-  const color = STATE_COLORS[estado] || "hsl(199, 89%, 48%)";
+export default function ParityChart({ data, estado, municipio }: ParityChartProps) {
+  const isCity = !!municipio;
+  const labelText = isCity ? municipio : estado;
+  const abbr = isCity ? municipio?.slice(0, 15) : (estado ? (STATE_ABBREVIATIONS[estado] || estado.slice(0, 2)) : "");
+  const color = isCity ? "hsl(280, 89%, 68%)" : (estado ? (STATE_COLORS[estado] || "hsl(199, 89%, 48%)") : "#fff");
 
   const chartData = useMemo(() => {
     return data
-      .filter(r => r.estado === estado)
+      .filter(r => {
+        if (isCity) return r.municipio === municipio;
+        return r.estado === estado;
+      })
       .sort((a, b) => parseShortDate(a.datas).getTime() - parseShortDate(b.datas).getTime())
       .map(r => {
         const d = parseShortDate(r.datas);
@@ -28,7 +34,9 @@ export default function ParityChart({ data, estado }: ParityChartProps) {
           favorable: r.paridade <= 70,
         };
       });
-  }, [data, estado]);
+  }, [data, estado, municipio, isCity]);
+
+  if (chartData.length === 0) return null;
 
   const minY = Math.min(...chartData.map(d => d.paridade), 70) - 3;
   const maxY = Math.max(...chartData.map(d => d.paridade), 70) + 3;
@@ -36,8 +44,9 @@ export default function ParityChart({ data, estado }: ParityChartProps) {
   return (
     <div className="h-full w-full p-2 animate-fade-in">
       <h3 className="mb-2 text-center text-xs font-bold uppercase tracking-wider">
-        <span style={{ color }}>{abbr}</span>{" "}
+        <span style={{ color }} className="truncate max-w-[150px] inline-block align-bottom">{labelText}</span>{" "}
         <span className="text-slate-500 font-normal">Paridade %</span>
+        {isCity && estado && <span className="ml-2 text-[9px] text-slate-600 block">{estado}</span>}
       </h3>
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>

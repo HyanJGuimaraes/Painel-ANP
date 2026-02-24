@@ -9,22 +9,25 @@ type Mode = "mom" | "yoy";
 interface ComparisonChartProps {
   data: FuelRecord[];
   filteredData?: FuelRecord[];
-  estado: string;
+  estado?: string;
+  municipio?: string;
   mode: Mode;
 }
 
-export default function ComparisonChart({ data, filteredData, estado, mode }: ComparisonChartProps) {
-  const abbr = STATE_ABBREVIATIONS[estado] || estado.slice(0, 2);
+export default function ComparisonChart({ data, filteredData, estado, municipio, mode }: ComparisonChartProps) {
+  const isCity = !!municipio;
+  const labelText = isCity ? municipio : estado;
+  const abbr = isCity ? municipio?.slice(0, 15) : (estado ? (STATE_ABBREVIATIONS[estado] || estado.slice(0, 2)) : "");
 
   const chartData = useMemo(() => {
-    // Full history for the state (needed for lookups)
+    // Full history for the key (needed for lookups)
     const stateFullData = data
-      .filter(r => r.estado === estado)
+      .filter(r => isCity ? r.municipio === municipio : r.estado === estado)
       .sort((a, b) => parseShortDate(a.datas).getTime() - parseShortDate(b.datas).getTime());
 
-    // Target weeks to display (if filteredData is provided, use it. otherwise use full)
+    // Target weeks to display
     const targetWeeks = filteredData
-      ? filteredData.filter(r => r.estado === estado).map(r => r.datas)
+      ? filteredData.filter(r => isCity ? r.municipio === municipio : r.estado === estado).map(r => r.datas)
       : stateFullData.map(r => r.datas);
 
     const targetSet = new Set(targetWeeks);
@@ -93,7 +96,7 @@ export default function ComparisonChart({ data, filteredData, estado, mode }: Co
     // Filter results to only show what the user selected in the main filter
     return results.filter(r => targetSet.has(r.datas));
 
-  }, [data, filteredData, estado, mode]);
+  }, [data, filteredData, estado, municipio, isCity, mode]);
 
   if (chartData.length === 0) {
     return (
@@ -113,7 +116,7 @@ export default function ComparisonChart({ data, filteredData, estado, mode }: Co
   return (
     <div className="h-full w-full p-2 animate-fade-in">
       <h3 className="mb-2 text-center text-xs font-bold uppercase tracking-wider">
-        <span className="text-blue-400">{abbr}</span>{" "}
+        <span className={isCity ? "text-purple-400" : "text-blue-400"}>{labelText}</span>{" "}
         <span className="text-slate-500 font-normal">
           {mode === "mom" ? "Variação Semanal (pp)" : "Variação Anual (pp)"}
         </span>

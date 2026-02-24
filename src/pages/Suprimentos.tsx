@@ -1,103 +1,203 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { FuelRecord, ALL_STATES, parseShortDate } from "@/data/sampleData";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { FuelRecord, ALL_STATES, parseShortDate, calculateRecord } from "@/data/sampleData";
 import AppNavbar from "@/components/AppNavbar";
-import FilterBar from "@/components/FilterBar";
 import StatsCards from "@/components/StatsCards";
 import FuelTable from "@/components/FuelTable";
 import ParityChart from "@/components/ParityChart";
 import DashboardTicker from "@/components/DashboardTicker";
 import ComparisonChart from "@/components/ComparisonChart";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, X } from "lucide-react";
+import { DatePickerWithRange } from '../components/DateRangePicker';
+import { MunicipalityMultiSelect } from '../components/MunicipalityMultiSelect';
+import { StateMultiSelect } from '../components/StateMultiSelect';
+import { DateRange } from 'react-day-picker';
+import { subMonths } from 'date-fns';
+
+const STATE_REGIONS: Record<string, string> = {
+  "AC": "NORTE", "AL": "NORDESTE", "AM": "NORTE", "AP": "NORTE", "BA": "NORDESTE", "CE": "NORDESTE",
+  "DF": "CENTRO OESTE", "ES": "SUDESTE", "GO": "CENTRO OESTE", "MA": "NORDESTE", "MG": "SUDESTE",
+  "MS": "CENTRO OESTE", "MT": "CENTRO OESTE", "PA": "NORTE", "PB": "NORDESTE", "PE": "NORDESTE",
+  "PI": "NORDESTE", "PR": "SUL", "RJ": "SUDESTE", "RN": "NORDESTE", "RO": "NORTE", "RR": "NORTE",
+  "RS": "SUL", "SC": "SUL", "SE": "NORDESTE", "SP": "SUDESTE", "TO": "NORTE"
+};
+const REGIONS = ["CENTRO OESTE", "NORDESTE", "NORTE", "SUDESTE", "SUL"];
 
 export default function Suprimentos() {
   const [data, setData] = useState<FuelRecord[]>([]);
-  console.log("Index rendering, data length:", data?.length);
-  const [selectedStates, setSelectedStates] = useState<string[]>(ALL_STATES);
-  const [weekCount, setWeekCount] = useState(13);
+  const [cityData, setCityData] = useState<FuelRecord[]>([]);
+
+  const [selectedRegion, setSelectedRegion] = useState("TODAS");
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [selectedMunicipalityKeys, setSelectedMunicipalityKeys] = useState<string[]>([]);
+
   const [mainChartMode, setMainChartMode] = useState<"parity" | "comparison">("parity");
   const [comparisonMode, setComparisonMode] = useState<"mom" | "yoy">("mom");
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subMonths(new Date(), 6),
+    to: new Date(),
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [dbLastUpdated, setDbLastUpdated] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const viewLevel = selectedMunicipalityKeys.length > 0 ? "municipio" : "estado";
+  const activeData = viewLevel === "estado" ? data : cityData;
 
   const allStates = useMemo(() => {
-    return [...new Set(data.map(r => r.estado))].sort();
-  }, [data]);
+    let states = [...new Set(data.map(r => r.estado))].sort();
+    if (selectedRegion !== "TODAS") {
+      states = states.filter(s => STATE_REGIONS[s] === selectedRegion);
+    }
+    return states;
+  }, [data, selectedRegion]);
+
+  const statesOptions = useMemo(() => {
+    return allStates.map(s => ({ value: s, label: s }));
+  }, [allStates]);
+
+  const municipalityOptions = useMemo(() => {
+    let filtered = cityData;
+    if (selectedRegion !== "TODAS") filtered = filtered.filter(r => STATE_REGIONS[r.estado] === selectedRegion);
+    if (selectedStates.length > 0) filtered = filtered.filter(r => selectedStates.includes(r.estado));
+
+    const uniqueKeys = new Set<string>();
+    filtered.forEach(r => {
+      if (r.municipio) uniqueKeys.add(`${r.municipio} - ${r.estado}`);
+    });
+
+    return Array.from(uniqueKeys).sort().map(key => ({
+      value: key,
+      label: key
+    }));
+  }, [cityData, selectedRegion, selectedStates]);
 
   const filteredData = useMemo(() => {
-    let filtered = data.filter(r => selectedStates.includes(r.estado));
+    let filtered = activeData;
 
-    if (dateRange.from || dateRange.to) {
+    // Apply geographic filters
+    if (viewLevel === "estado") {
+      if (selectedStates.length > 0) {
+        filtered = filtered.filter(r => selectedStates.includes(r.estado));
+      } else if (selectedRegion !== "TODAS") {
+        filtered = filtered.filter(r => STATE_REGIONS[r.estado] === selectedRegion);
+      }
+    } else {
+      // viewLevel === "municipio"
+      filtered = filtered.filter(r => r.municipio && selectedMunicipalityKeys.includes(`${r.municipio} - ${r.estado}`));
+    }
+
+    if (dateRange?.from || dateRange?.to) {
       filtered = filtered.filter(r => {
         const d = parseShortDate(r.datas);
         if (dateRange.from && d < dateRange.from) return false;
         if (dateRange.to && d > dateRange.to) return false;
         return true;
       });
-    } else {
-      const allDates = [...new Set(data.map(r => r.datas))]
-        .sort((a, b) => parseShortDate(b).getTime() - parseShortDate(a).getTime());
-      const recentDates = weekCount >= 999 ? allDates : allDates.slice(0, weekCount);
-      const dateSet = new Set(recentDates);
-      filtered = filtered.filter(r => dateSet.has(r.datas));
     }
 
     return filtered.sort((a, b) => parseShortDate(a.datas).getTime() - parseShortDate(b.datas).getTime());
-    return filtered.sort((a, b) => parseShortDate(a.datas).getTime() - parseShortDate(b.datas).getTime());
-  }, [data, selectedStates, weekCount, dateRange]);
+  }, [activeData, selectedRegion, selectedStates, selectedMunicipalityKeys, viewLevel, dateRange]);
 
   const latestDataDate = useMemo(() => {
-    if (data.length === 0) return null;
-    return data.reduce((max, r) => {
+    if (activeData.length === 0) return null;
+    return activeData.reduce((max, r) => {
       const d = parseShortDate(r.datas);
       return d > max ? d : max;
     }, new Date(0));
-  }, [data]);
+  }, [activeData]);
 
   // Fetch from Python API (FastAPI)
   const fetchFromAPI = useCallback(async (startDate?: string) => {
     setIsRefreshing(true);
-    console.log("Fetching from API...", { startDate });
     try {
-      let url = "/api/history?limit=50000";
+      let stateUrl = "/api/history?limit=50000";
+      let cityUrl = "/api/history/municipalities?";
       if (startDate) {
-        url += `&start_date=${startDate}`;
-      }
-      console.log("Request URL:", url);
-
-      const res = await fetch(url);
-      console.log("Response Status:", res.status);
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("API Error Body:", text);
-        throw new Error(`API Error: ${res.status} ${res.statusText}`);
+        stateUrl += `&start_date=${startDate}`;
+        cityUrl += `start_date=${startDate}`;
       }
 
-      const records: FuelRecord[] = await res.json();
-      console.log("Records received:", records.length);
+      const [stateRes, cityRes] = await Promise.all([
+        fetch(stateUrl),
+        fetch(cityUrl)
+      ]);
 
-      if (records.length > 0) {
-        setData(prev => {
-          // Merge with existing data to avoid duplicates
-          const existingSigs = new Set(prev.map(r => `${r.estado}-${r.datas}`));
-          const newRecords = records.filter(r => !existingSigs.has(`${r.estado}-${r.datas}`));
-          console.log("New records merged:", newRecords.length);
-          return [...prev, ...newRecords];
-        });
-
-        const newStates = [...new Set(records.map(r => r.estado))].sort();
-        setSelectedStates(prev => {
-          // If user hasn't selected anything yet, select all. otherwise keep selection
-          return prev.length === ALL_STATES.length ? newStates : prev;
-        });
-        setLastUpdated(new Date());
-      } else {
-        console.warn("API returned 0 records.");
+      if (stateRes.ok) {
+        const records: FuelRecord[] = await stateRes.json();
+        if (records.length > 0) {
+          setData(prev => {
+            const existingSigs = new Set(prev.map(r => `${r.estado}-${r.datas}`));
+            const newRecords = records.filter(r => !existingSigs.has(`${r.estado}-${r.datas}`));
+            return [...prev, ...newRecords];
+          });
+        }
       }
+
+      if (cityRes.ok) {
+        const cityRows: any[] = await cityRes.json();
+
+        // Pivot city data: (municipio + datas) -> { etanol, gasolina }
+        const map = new Map<string, { estado: string, municipio: string, datas: string, etanol?: number, gasolina?: number }>();
+
+        for (const row of cityRows) {
+          // Data is already handled in backend but just in case it is a string like 2024-01-01
+          let dataFinalObj = row.data_final;
+          let dataInicialObj = row.data_inicial;
+
+          let dateStrFinal = "";
+          let dateStrInicial = "";
+
+          if (typeof dataFinalObj === 'string') {
+            const dtParts = dataFinalObj.split("-");
+            if (dtParts.length === 3) dateStrFinal = `${dtParts[2]}/${dtParts[1]}/${dtParts[0]}`;
+            else dateStrFinal = new Date(dataFinalObj).toLocaleDateString('pt-BR');
+          } else {
+            dateStrFinal = new Date(dataFinalObj).toLocaleDateString('pt-BR');
+          }
+
+          if (typeof dataInicialObj === 'string') {
+            const dtParts = dataInicialObj.split("-");
+            if (dtParts.length === 3) dateStrInicial = `${dtParts[2]}/${dtParts[1]}/${dtParts[0]}`;
+            else dateStrInicial = new Date(dataInicialObj).toLocaleDateString('pt-BR');
+          } else {
+            // handle if it is missing
+            dateStrInicial = dateStrFinal;
+          }
+
+          const datas = `${dateStrInicial} - ${dateStrFinal}`;
+          const key = `${row.municipio}-${datas}`;
+
+          if (!map.has(key)) {
+            map.set(key, { estado: row.estado, municipio: row.municipio, datas });
+          }
+
+          const entry = map.get(key)!;
+          const prod = row.produto.toUpperCase();
+          if (prod.includes("ETANOL")) entry.etanol = row.preco_medio_revenda;
+          if (prod.includes("GASOLINA")) entry.gasolina = row.preco_medio_revenda;
+        }
+
+        const newCityRecords: FuelRecord[] = [];
+        for (const entry of map.values()) {
+          if (entry.etanol != null && entry.gasolina != null) {
+            const rec = calculateRecord(entry.estado, entry.datas, entry.etanol, entry.gasolina);
+            rec.municipio = entry.municipio;
+            newCityRecords.push(rec);
+          }
+        }
+
+        if (newCityRecords.length > 0) {
+          setCityData(prev => {
+            const existingSigs = new Set(prev.map(r => `${r.municipio}-${r.datas}`));
+            const newRecords = newCityRecords.filter(r => !existingSigs.has(`${r.municipio}-${r.datas}`));
+            return [...prev, ...newRecords];
+          });
+        }
+      }
+
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to fetch from API:", err);
     } finally {
@@ -107,10 +207,10 @@ export default function Suprimentos() {
 
   // Check if we need to load more data based on filters
   useEffect(() => {
-    if (dateRange.from) {
+    if (dateRange?.from) {
       // Check if we have data for this start date
-      const minDateLoaded = data.length > 0
-        ? data.reduce((min, r) => {
+      const minDateLoaded = activeData.length > 0
+        ? activeData.reduce((min, r) => {
           const d = parseShortDate(r.datas).getTime();
           return d < min ? d : min;
         }, Infinity)
@@ -127,7 +227,7 @@ export default function Suprimentos() {
         fetchFromAPI(`${yyyy}-${mm}-${dd}`);
       }
     }
-  }, [dateRange, data, fetchFromAPI]);
+  }, [dateRange, activeData, fetchFromAPI]);
 
   // Initial Fetch on Mount (Default to 2022)
   useEffect(() => {
@@ -148,6 +248,23 @@ export default function Suprimentos() {
       .catch(err => console.error("Failed to fetch last update:", err));
   }, [fetchFromAPI]);
 
+  // Grouping labels for charts depending on viewLevel
+  const getChartGroups = () => {
+    if (viewLevel === "estado") {
+      let statesList: string[] = [];
+      if (selectedStates.length > 0) statesList = selectedStates;
+      else if (selectedRegion !== "TODAS") statesList = allStates.filter(s => STATE_REGIONS[s] === selectedRegion);
+      else statesList = [...new Set(filteredData.map(r => r.estado))].sort();
+
+      return statesList.map(s => ({ estado: s, municipio: undefined }));
+    }
+
+    // Municipio
+    return selectedMunicipalityKeys.slice(0, 20).map(k => {
+      const [mun, est] = k.split(" - ");
+      return { estado: est, municipio: mun };
+    });
+  };
 
 
   return (
@@ -187,15 +304,73 @@ export default function Suprimentos() {
               </div>
             </div>
 
-            <FilterBar
-              selectedStates={selectedStates}
-              onStatesChange={setSelectedStates}
-              weekCount={weekCount}
-              onWeekCountChange={setWeekCount}
-              allStates={allStates}
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-            />
+            <GlassCard className="p-4">
+              <div className="flex flex-col gap-4">
+
+                {/* Top Filters: Region + State */}
+                <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center">
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={selectedRegion}
+                      onChange={(e) => { setSelectedRegion(e.target.value); setSelectedStates([]); setSelectedMunicipalityKeys([]); }}
+                      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:border-cyan-500/50"
+                    >
+                      <option value="TODAS">Região: Todas</option>
+                      {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+
+                    <StateMultiSelect
+                      options={statesOptions}
+                      value={selectedStates}
+                      onChange={(val) => { setSelectedStates(val); setSelectedMunicipalityKeys([]); }}
+                    />
+                  </div>
+                </div>
+
+                <div className="h-px bg-slate-200 dark:bg-white/5 w-full" />
+
+                {/* Bottom Filters: Searchable Municipality + Date Picker */}
+                <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+                  <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                      Município (Opcional):
+                    </label>
+                    <MunicipalityMultiSelect
+                      options={municipalityOptions}
+                      value={selectedMunicipalityKeys}
+                      onChange={setSelectedMunicipalityKeys}
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                      Período:
+                    </label>
+                    <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  <div className="flex items-center w-full md:w-auto mt-2 lg:mt-0 lg:ml-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedRegion("TODAS");
+                        setSelectedStates([]);
+                        setSelectedMunicipalityKeys([]);
+                        setDateRange({
+                          from: subMonths(new Date(), 6),
+                          to: new Date()
+                        });
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors w-full md:w-auto"
+                    >
+                      <X className="w-4 h-4" />
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </GlassCard>
           </div>
 
           <StatsCards data={filteredData} />
@@ -206,11 +381,11 @@ export default function Suprimentos() {
               <div className="p-4 border-b border-white/5 bg-white/5">
                 <h3 className="font-semibold text-white flex items-center gap-2">
                   <LayoutDashboard className="h-4 w-4 text-blue-400" />
-                  Dados Detalhados
+                  Dados Detalhados {viewLevel === "municipio" && <span className="text-purple-400 text-xs ml-2">(Por Município)</span>}
                 </h3>
               </div>
               <div className="flex-1 overflow-hidden p-2">
-                <FuelTable data={filteredData} />
+                <FuelTable data={filteredData} viewLevel={viewLevel} />
               </div>
             </GlassCard>
 
@@ -248,8 +423,13 @@ export default function Suprimentos() {
                 {/* Parity Charts View */}
                 {mainChartMode === "parity" && (
                   <div className="grid gap-4 overflow-y-auto pr-1 custom-scrollbar flex-1">
-                    {selectedStates.map(estado => (
-                      <ParityChart key={estado} data={filteredData} estado={estado} />
+                    {getChartGroups().map(group => (
+                      <ParityChart
+                        key={group.municipio ? `${group.municipio}-${group.estado}` : group.estado}
+                        data={filteredData}
+                        estado={group.estado}
+                        municipio={group.municipio}
+                      />
                     ))}
                   </div>
                 )}
@@ -274,12 +454,13 @@ export default function Suprimentos() {
                       </button>
                     </div>
                     <div className="grid gap-4 overflow-y-auto pr-1 custom-scrollbar flex-1">
-                      {selectedStates.map(estado => (
+                      {getChartGroups().map(group => (
                         <ComparisonChart
-                          key={estado}
-                          data={data}
+                          key={group.municipio ? `${group.municipio}-${group.estado}` : group.estado}
+                          data={activeData}
                           filteredData={filteredData}
-                          estado={estado}
+                          estado={group.estado}
+                          municipio={group.municipio}
                           mode={comparisonMode}
                         />
                       ))}

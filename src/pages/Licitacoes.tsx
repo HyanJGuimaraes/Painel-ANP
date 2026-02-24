@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { DatePickerWithRange } from '../components/DateRangePicker';
 import { MunicipalityMultiSelect } from '../components/MunicipalityMultiSelect';
+import { StateMultiSelect } from '../components/StateMultiSelect';
 import { DateRange } from 'react-day-picker';
 import { format, subMonths } from 'date-fns';
 import {
@@ -44,7 +45,7 @@ export default function Licitacoes() {
     // State
     const [selectedProduct, setSelectedProduct] = useState("OLEO DIESEL S10");
     const [selectedRegion, setSelectedRegion] = useState("TODAS");
-    const [selectedState, setSelectedState] = useState("TODOS");
+    const [selectedStates, setSelectedStates] = useState<string[]>([]);
     const [selectedMunicipalityKeys, setSelectedMunicipalityKeys] = useState<string[]>([]); // Keys: "Municipality - UF"
     const [dbLastUpdated, setDbLastUpdated] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -90,10 +91,10 @@ export default function Licitacoes() {
 
     // Unique Lists for Dropdowns
     const regions = useMemo(() => [...new Set(records?.map(r => r.regiao) || [])].sort(), [records]);
-    const states = useMemo(() => {
+    const statesOptions = useMemo(() => {
         let filtered = records || [];
         if (selectedRegion !== "TODAS") filtered = filtered.filter(r => r.regiao === selectedRegion);
-        return [...new Set(filtered.map(r => r.estado))].sort();
+        return [...new Set(filtered.map(r => r.estado))].sort().map(s => ({ value: s, label: s }));
     }, [records, selectedRegion]);
 
     // Generate Combobox Options (Unique "Municipality - UF")
@@ -103,7 +104,7 @@ export default function Licitacoes() {
 
         // Apply pre-filters if selected (Region/State)
         if (selectedRegion !== "TODAS") filtered = filtered.filter(r => r.regiao === selectedRegion);
-        if (selectedState !== "TODOS") filtered = filtered.filter(r => r.estado === selectedState);
+        if (selectedStates.length > 0) filtered = filtered.filter(r => selectedStates.includes(r.estado));
 
         const uniqueKeys = new Set<string>();
         filtered.forEach(r => uniqueKeys.add(`${r.municipio} - ${r.estado}`));
@@ -112,7 +113,7 @@ export default function Licitacoes() {
             value: key,
             label: key
         }));
-    }, [records, selectedRegion, selectedState]);
+    }, [records, selectedRegion, selectedStates]);
 
 
     // Filter Logic
@@ -120,7 +121,7 @@ export default function Licitacoes() {
         if (!records) return [];
         const filtered = records.filter(r => {
             if (selectedRegion !== "TODAS" && r.regiao !== selectedRegion) return false;
-            if (selectedState !== "TODOS" && r.estado !== selectedState) return false;
+            if (selectedStates.length > 0 && !selectedStates.includes(r.estado)) return false;
 
             // Strict precise filtering based on composite key "Municipality - UF"
             const recordKey = `${r.municipio} - ${r.estado}`;
@@ -134,7 +135,7 @@ export default function Licitacoes() {
             if (dateDiff !== 0) return dateDiff;
             return a.municipio.localeCompare(b.municipio);
         });
-    }, [records, selectedRegion, selectedState, selectedMunicipalityKeys]);
+    }, [records, selectedRegion, selectedStates, selectedMunicipalityKeys]);
 
     // HELPER: Aggregates data for a specific set of records (single city or total)
     const getChartData = (sourceRecords: MunicipalityRecord[]) => {
@@ -219,21 +220,18 @@ export default function Licitacoes() {
                                     <div className="flex flex-wrap gap-2">
                                         <select
                                             value={selectedRegion}
-                                            onChange={(e) => { setSelectedRegion(e.target.value); setSelectedState("TODOS"); setSelectedMunicipalityKeys([]); }}
+                                            onChange={(e) => { setSelectedRegion(e.target.value); setSelectedStates([]); setSelectedMunicipalityKeys([]); }}
                                             className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:border-cyan-500/50"
                                         >
                                             <option value="TODAS">Região: Todas</option>
                                             {regions.map(r => <option key={r} value={r}>{r}</option>)}
                                         </select>
 
-                                        <select
-                                            value={selectedState}
-                                            onChange={(e) => { setSelectedState(e.target.value); setSelectedMunicipalityKeys([]); }}
-                                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:border-cyan-500/50"
-                                        >
-                                            <option value="TODOS">UF: Todos</option>
-                                            {states.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
+                                        <StateMultiSelect
+                                            options={statesOptions}
+                                            value={selectedStates}
+                                            onChange={(val) => { setSelectedStates(val); setSelectedMunicipalityKeys([]); }}
+                                        />
                                     </div>
                                 </div>
 
@@ -257,6 +255,26 @@ export default function Licitacoes() {
                                             Período:
                                         </label>
                                         <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                                    </div>
+
+                                    {/* Clear Filters Button */}
+                                    <div className="flex items-center w-full md:w-auto mt-2 lg:mt-0 lg:ml-auto">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedProduct("OLEO DIESEL S10");
+                                                setSelectedRegion("TODAS");
+                                                setSelectedStates([]);
+                                                setSelectedMunicipalityKeys([]);
+                                                setDateRange({
+                                                    from: subMonths(new Date(), 6),
+                                                    to: new Date()
+                                                });
+                                            }}
+                                            className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors w-full md:w-auto"
+                                        >
+                                            <X className="w-4 h-4" />
+                                            Limpar
+                                        </button>
                                     </div>
                                 </div>
 
