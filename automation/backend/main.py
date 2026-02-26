@@ -92,20 +92,21 @@ def read_municipalities_history(
     region: str = None, 
     start_date: str = None,
     end_date: str = None,
+    limit: int = 50000,
     db: Session = Depends(get_db)
 ):
     """
     Returns municipality data. Default: last 5 available weeks.
     Can be filtered by product, state, region, and date range.
     """
-    return crud.get_municipalities(db, product=product, state=state, region=region, start_date=start_date, end_date=end_date)
+    return crud.get_municipalities(db, product=product, state=state, region=region, start_date=start_date, end_date=end_date, limit=limit)
 
 @app.get("/api/history/regions", response_model=List[schemas.FuelRecordRegion])
-def read_regions_history(product: str = None, db: Session = Depends(get_db)):
+def read_regions_history(product: str = None, limit: int = 5000, db: Session = Depends(get_db)):
     """
     Returns region data for the last 5 available weeks.
     """
-    return crud.get_regions(db, product=product)
+    return crud.get_regions(db, product=product, limit=limit)
 
 @app.get("/")
 def read_root():

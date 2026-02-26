@@ -14,8 +14,10 @@ def get_history(db: Session, limit: int = 1000, start_date: str = None):
     if start_date:
         # Assuming start_date is "YYYY-MM-DD"
         try:
-            d = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            query = query.filter(models.FuelHistory.data_final >= d)
+            # Validate format
+            datetime.datetime.strptime(start_date, "%Y-%m-%d")
+            # Don't pass datetime object directly to SQLAlchemy to avoid PostgreSQL timestamp vs date cast error
+            query = query.filter(models.FuelHistory.data_final >= start_date)
         except ValueError:
             pass # ignore invalid date
             
@@ -77,12 +79,34 @@ def get_history(db: Session, limit: int = 1000, start_date: str = None):
             
     return records
 
+def get_last_update(db: Session):
+    latest_valid = db.query(models.FuelHistoryMunicipality.data_final)\
+        .filter(models.FuelHistoryMunicipality.data_final.like("20%"))\
+        .order_by(models.FuelHistoryMunicipality.data_final.desc())\
+        .first()
+        
+    count = db.query(models.FuelHistoryMunicipality).count()
+    
+    max_date = None
+    if latest_valid:
+        d = latest_valid[0]
+        if isinstance(d, datetime.date):
+            max_date = d
+        elif isinstance(d, str):
+            try:
+                if " " in d:
+                    max_date = datetime.datetime.strptime(d.split(" ")[0], "%Y-%m-%d").date()
+                else:
+                    max_date = datetime.datetime.strptime(d, "%Y-%m-%d").date()
+            except:
+                pass
+
     return schemas.LastUpdate(
         last_updated=str(max_date) if max_date else "N/A",
         total_records=count
     )
 
-def get_municipalities(db: Session, product: str = None, state: str = None, region: str = None, start_date: str = None, end_date: str = None):
+def get_municipalities(db: Session, product: str = None, state: str = None, region: str = None, start_date: str = None, end_date: str = None, limit: int = 50000):
     # 1. Determine Date Range
     query = db.query(models.FuelHistoryMunicipality)
     
@@ -128,9 +152,9 @@ def get_municipalities(db: Session, product: str = None, state: str = None, regi
         query = query.filter(models.FuelHistoryMunicipality.regiao == region)
         
     # Return raw list
-    return query.order_by(models.FuelHistoryMunicipality.data_final.desc()).all()
+    return query.order_by(models.FuelHistoryMunicipality.data_final.desc()).limit(limit).all()
 
-def get_regions(db: Session, product: str = None):
+def get_regions(db: Session, product: str = None, limit: int = 5000):
     # 1. Find the latest valid date efficiently (SQL Filter)
     latest_valid = db.query(models.FuelHistoryRegion.data_final)\
         .filter(models.FuelHistoryRegion.data_final.like("20%"))\
@@ -168,4 +192,4 @@ def get_regions(db: Session, product: str = None):
     if product:
         query = query.filter(models.FuelHistoryRegion.produto == product)
         
-    return query.order_by(models.FuelHistoryRegion.data_final.desc()).all()
+    return query.order_by(models.FuelHistoryRegion.data_final.desc()).limit(limit).all()
