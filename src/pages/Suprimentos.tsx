@@ -8,7 +8,7 @@ import ParityChart from "@/components/ParityChart";
 import DashboardTicker from "@/components/DashboardTicker";
 import ComparisonChart from "@/components/ComparisonChart";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LayoutDashboard, X } from "lucide-react";
+import { LayoutDashboard, X, Map as MapIcon, MapPin } from "lucide-react";
 import { DatePickerWithRange } from '../components/DateRangePicker';
 import { MunicipalityMultiSelect } from '../components/MunicipalityMultiSelect';
 import { StateMultiSelect } from '../components/StateMultiSelect';
@@ -31,6 +31,7 @@ export default function Suprimentos() {
   const [selectedRegion, setSelectedRegion] = useState("TODAS");
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedMunicipalityKeys, setSelectedMunicipalityKeys] = useState<string[]>([]);
+  const [viewLevel, setViewLevel] = useState<"estado" | "municipio">("estado");
 
   const [mainChartMode, setMainChartMode] = useState<"parity" | "comparison">("parity");
   const [comparisonMode, setComparisonMode] = useState<"mom" | "yoy">("mom");
@@ -43,7 +44,6 @@ export default function Suprimentos() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [dbLastUpdated, setDbLastUpdated] = useState<string | null>(null);
 
-  const viewLevel = selectedMunicipalityKeys.length > 0 ? "municipio" : "estado";
   const activeData = viewLevel === "estado" ? data : cityData;
 
   const allStates = useMemo(() => {
@@ -86,7 +86,16 @@ export default function Suprimentos() {
       }
     } else {
       // viewLevel === "municipio"
-      filtered = filtered.filter(r => r.municipio && selectedMunicipalityKeys.includes(`${r.municipio} - ${r.estado}`));
+      if (selectedMunicipalityKeys.length > 0) {
+        filtered = filtered.filter(r => r.municipio && selectedMunicipalityKeys.includes(`${r.municipio} - ${r.estado}`));
+      } else {
+        // Just enforce region and state level first, showing ALL municipalities inside them
+        if (selectedStates.length > 0) {
+          filtered = filtered.filter(r => selectedStates.includes(r.estado));
+        } else if (selectedRegion !== "TODAS") {
+          filtered = filtered.filter(r => STATE_REGIONS[r.estado] === selectedRegion);
+        }
+      }
     }
 
     if (dateRange?.from || dateRange?.to) {
@@ -310,6 +319,27 @@ export default function Suprimentos() {
 
                 {/* Top Filters: Region + State */}
                 <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center">
+
+                  {/* View Level Toggle (Estado vs Municipio) */}
+                  <div className="flex bg-black/30 rounded-xl p-1 border border-white/5 shrink-0">
+                    <button
+                      onClick={() => { setViewLevel("estado"); setSelectedMunicipalityKeys([]); }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${viewLevel === "estado" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-white/5"
+                        }`}
+                    >
+                      <MapIcon className="w-3.5 h-3.5" />
+                      Estado
+                    </button>
+                    <button
+                      onClick={() => setViewLevel("municipio")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${viewLevel === "municipio" ? "bg-purple-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-white/5"
+                        }`}
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      Município
+                    </button>
+                  </div>
+
                   <div className="flex flex-wrap gap-2">
                     <select
                       value={selectedRegion}
@@ -333,14 +363,18 @@ export default function Suprimentos() {
                 {/* Bottom Filters: Searchable Municipality + Date Picker */}
                 <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
                   <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                      Município (Opcional):
-                    </label>
-                    <MunicipalityMultiSelect
-                      options={municipalityOptions}
-                      value={selectedMunicipalityKeys}
-                      onChange={setSelectedMunicipalityKeys}
-                    />
+                    {viewLevel === "municipio" && (
+                      <>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                          Município (Opcional):
+                        </label>
+                        <MunicipalityMultiSelect
+                          options={municipalityOptions}
+                          value={selectedMunicipalityKeys}
+                          onChange={setSelectedMunicipalityKeys}
+                        />
+                      </>
+                    )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
@@ -357,6 +391,7 @@ export default function Suprimentos() {
                         setSelectedRegion("TODAS");
                         setSelectedStates([]);
                         setSelectedMunicipalityKeys([]);
+                        setViewLevel("estado");
                         setDateRange({
                           from: subMonths(new Date(), 6),
                           to: new Date()
