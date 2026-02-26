@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { FuelRecord, ALL_STATES, parseShortDate, calculateRecord } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
+import { ALL_STATES, parseShortDate, calculateRecord } from "@/lib/fuel";
 import AppNavbar from "@/components/AppNavbar";
 import StatsCards from "@/components/StatsCards";
 import FuelTable from "@/components/FuelTable";

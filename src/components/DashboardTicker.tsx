@@ -1,4 +1,4 @@
-import { FuelRecord } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
 import { useMemo } from "react";
 
 interface DashboardTickerProps {

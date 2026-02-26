@@ -14,7 +14,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Info, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
-import { FuelRecord, parseShortDate } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
+import { parseShortDate } from "@/lib/fuel";
 import SignalBadge from "./SignalBadge";
 
 interface FuelTableProps {

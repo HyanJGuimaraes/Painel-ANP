@@ -2,7 +2,7 @@ import { Check, ChevronDown, X, CalendarIcon, RotateCcw, MapPin, Map } from "luc
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ALL_STATES, STATE_ABBREVIATIONS } from "@/data/sampleData";
+import { ALL_STATES, STATE_ABBREVIATIONS } from "@/lib/fuel";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";

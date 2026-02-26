@@ -1,7 +1,8 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell,
 } from "recharts";
-import { FuelRecord, STATE_ABBREVIATIONS, parseShortDate } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
+import { STATE_ABBREVIATIONS, parseShortDate } from "@/lib/fuel";
 import { useMemo } from "react";
 
 type Mode = "mom" | "yoy";

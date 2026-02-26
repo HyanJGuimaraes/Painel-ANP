@@ -1,7 +1,8 @@
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Area,
 } from "recharts";
-import { FuelRecord, STATE_ABBREVIATIONS, STATE_COLORS, parseShortDate } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
+import { STATE_ABBREVIATIONS, STATE_COLORS, parseShortDate } from "@/lib/fuel";
 import { useMemo } from "react";
 
 interface ParityChartProps {

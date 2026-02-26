@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Upload, FileText, X, CheckCircle, AlertCircle } from "lucide-react";
-import { FuelRecord, parseCsvData } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
+import { parseCsvData } from "@/lib/fuel";
 
 interface CsvUploadDialogProps {
   open: boolean;

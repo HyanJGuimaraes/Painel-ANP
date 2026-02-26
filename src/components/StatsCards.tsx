@@ -1,5 +1,5 @@
 import { TrendingDown, TrendingUp, Droplets, Flame } from "lucide-react";
-import { FuelRecord } from "@/data/sampleData";
+import { FuelRecord } from "@/types/fuel";
 import { GlassCard } from "./ui/GlassCard";
 import { useMemo } from "react";
 
