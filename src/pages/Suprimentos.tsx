@@ -137,15 +137,15 @@ export default function Suprimentos() {
       }
 
       if (cityRes.ok) {
-        const cityRows: any[] = await cityRes.json();
+        const cityRows: { estado: string, municipio: string, produto: string, preco_medio_revenda: number, data_inicial: string, data_final: string }[] = await cityRes.json();
 
         // Pivot city data: (municipio + datas) -> { etanol, gasolina }
         const map = new Map<string, { estado: string, municipio: string, datas: string, etanol?: number, gasolina?: number }>();
 
         for (const row of cityRows) {
           // Data is already handled in backend but just in case it is a string like 2024-01-01
-          let dataFinalObj = row.data_final;
-          let dataInicialObj = row.data_inicial;
+          const dataFinalObj = row.data_final;
+          const dataInicialObj = row.data_inicial;
 
           let dateStrFinal = "";
           let dateStrInicial = "";

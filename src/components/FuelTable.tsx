@@ -55,8 +55,8 @@ export default function FuelTable({ data, viewLevel = "estado" }: FuelTableProps
       comparison = valA.localeCompare(valB);
     } else {
       // Numeric sort or string
-      const valA: any = a[key as keyof FuelRecord] || 0;
-      const valB: any = b[key as keyof FuelRecord] || 0;
+      const valA: unknown = a[key as keyof FuelRecord] || 0;
+      const valB: unknown = b[key as keyof FuelRecord] || 0;
       if (typeof valA === 'string' && typeof valB === 'string') {
         comparison = valA.localeCompare(valB);
       } else {

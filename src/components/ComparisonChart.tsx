@@ -147,7 +147,7 @@ export default function ComparisonChart({ data, filteredData, estado, municipio,
               boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.5)",
             }}
             cursor={{ fill: "rgba(255,255,255,0.05)" }}
-            formatter={(value: number, _name: string, props: any) => {
+            formatter={(value: number, _name: string, props: { payload: { current: number, previous: number } }) => {
               const { current, previous } = props.payload;
               return [
                 <span key="val" className="font-mono font-bold text-slate-200">

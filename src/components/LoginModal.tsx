@@ -58,10 +58,11 @@ export default function LoginModal() {
             setOpen(false);
             navigate("/admin"); // Push user to protected route
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Login failed:", error);
+            const err = error as { response?: { data?: { detail?: string } } };
             toast.error(
-                error.response?.data?.detail || "Erro ao conectar com o servidor. Verifique suas credenciais."
+                err.response?.data?.detail || "Erro ao conectar com o servidor. Verifique suas credenciais."
             );
         } finally {
             setIsLoading(false);
