@@ -278,9 +278,9 @@ export default function Suprimentos() {
 
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
       {/* Background Ambience */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
+      <div className="fixed inset-0 z-0 pointer-events-none hidden dark:block">
         <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-[120px]" />
         <div className="absolute bottom-[10%] right-[10%] h-[400px] w-[400px] rounded-full bg-purple-500/10 blur-[100px]" />
       </div>
@@ -298,8 +298,8 @@ export default function Suprimentos() {
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-white">Dashboard de Suprimentos</h2>
-                <p className="text-sm text-slate-400">Acompanhamento e paridade de combustíveis.</p>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard de Suprimentos</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Acompanhamento e paridade de combustíveis.</p>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -414,9 +414,9 @@ export default function Suprimentos() {
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Main Data Table - Always Visible (2/3 width on large screens) */}
             <GlassCard className="lg:col-span-2 h-[800px] p-0 overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-white/5 bg-white/5">
-                <h3 className="font-semibold text-white flex items-center gap-2">
-                  <LayoutDashboard className="h-4 w-4 text-blue-400" />
+              <div className="p-4 border-b border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-white/5">
+                <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   Dados Detalhados {viewLevel === "municipio" && <span className="text-purple-400 text-xs ml-2">(Por Município)</span>}
                 </h3>
               </div>
@@ -438,7 +438,7 @@ export default function Suprimentos() {
                     onClick={() => setMainChartMode("parity")}
                     className={`px-3 py-1.5 text-[10px] font-bold font-mono uppercase rounded-md transition-all ${mainChartMode === "parity"
                       ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                      : "text-slate-400 hover:text-white"
+                      : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
                       }`}
                   >
                     PARIDADE
@@ -447,7 +447,7 @@ export default function Suprimentos() {
                     onClick={() => setMainChartMode("comparison")}
                     className={`px-3 py-1.5 text-[10px] font-bold font-mono uppercase rounded-md transition-all ${mainChartMode === "comparison"
                       ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20"
-                      : "text-slate-400 hover:text-white"
+                      : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5"
                       }`}
                   >
                     COMPARATIVO
@@ -476,14 +476,14 @@ export default function Suprimentos() {
                     <div className="flex justify-end gap-1">
                       <button
                         onClick={() => setComparisonMode("mom")}
-                        className={`text-[10px] uppercase font-mono px-2 py-1 rounded border border-white/10 transition-colors ${comparisonMode === "mom" ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
+                        className={`text-[10px] uppercase font-mono px-2 py-1 rounded border transition-colors ${comparisonMode === "mom" ? "bg-slate-800 text-white border-slate-700 dark:bg-white/10 dark:border-white/10" : "border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:border-white/10 dark:hover:text-slate-300 dark:hover:bg-transparent"
                           }`}
                       >
                         MoM
                       </button>
                       <button
                         onClick={() => setComparisonMode("yoy")}
-                        className={`text-[10px] uppercase font-mono px-2 py-1 rounded border border-white/10 transition-colors ${comparisonMode === "yoy" ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
+                        className={`text-[10px] uppercase font-mono px-2 py-1 rounded border transition-colors ${comparisonMode === "yoy" ? "bg-slate-800 text-white border-slate-700 dark:bg-white/10 dark:border-white/10" : "border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:border-white/10 dark:hover:text-slate-300 dark:hover:bg-transparent"
                           }`}
                       >
                         YoY

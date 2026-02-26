@@ -162,9 +162,9 @@ export default function Licitacoes() {
     const mainChartData = useMemo(() => getChartData(filteredRecords), [filteredRecords]);
 
     return (
-        <div className="flex min-h-screen flex-col bg-[#0a0a0a] text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
+        <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-200 selection:bg-blue-500/30 overflow-x-hidden">
             {/* Background Ambience */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
+            <div className="fixed inset-0 z-0 pointer-events-none hidden dark:block">
                 <div className="absolute top-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-cyan-500/10 blur-[120px]" />
                 <div className="absolute bottom-[10%] left-[10%] h-[400px] w-[400px] rounded-full bg-blue-600/10 blur-[100px]" />
             </div>
@@ -179,8 +179,8 @@ export default function Licitacoes() {
                     <div className="space-y-4">
                         <div className="flex items-center justify-between px-2">
                             <div>
-                                <h2 className="text-2xl font-bold tracking-tight text-white">Dashboard de Licitações</h2>
-                                <p className="text-sm text-slate-400">Acompanhamento de preço dos combustíveis.</p>
+                                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard de Licitações</h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">Acompanhamento de preço dos combustíveis.</p>
                             </div>
                             <div className="flex flex-col items-end gap-1">
                                 <div className="flex items-center gap-2 text-xs text-slate-500">
