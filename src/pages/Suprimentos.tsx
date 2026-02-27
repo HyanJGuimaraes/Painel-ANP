@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FuelRecord } from "@/types/fuel";
 import { ALL_STATES, parseShortDate, calculateRecord } from "@/lib/fuel";
 import AppNavbar from "@/components/AppNavbar";
@@ -13,7 +14,7 @@ import { DatePickerWithRange } from '../components/DateRangePicker';
 import { MunicipalityMultiSelect } from '../components/MunicipalityMultiSelect';
 import { StateMultiSelect } from '../components/StateMultiSelect';
 import { DateRange } from 'react-day-picker';
-import { subMonths } from 'date-fns';
+import { subMonths, subWeeks, format } from 'date-fns';
 
 const STATE_REGIONS: Record<string, string> = {
   "AC": "NORTE", "AL": "NORDESTE", "AM": "NORTE", "AP": "NORTE", "BA": "NORDESTE", "CE": "NORDESTE",
@@ -26,7 +27,48 @@ const REGIONS = ["CENTRO OESTE", "NORDESTE", "NORTE", "SUDESTE", "SUL"];
 
 export default function Suprimentos() {
   const [data, setData] = useState<FuelRecord[]>([]);
-  const [cityData, setCityData] = useState<FuelRecord[]>([]);
+
+  // Fetch municipality raw rows — only last 8 weeks to avoid Vercel timeout
+  const cityStartDate = useMemo(() => format(subWeeks(new Date(), 8), 'yyyy-MM-dd'), []);
+  const { data: rawCityRows = [] } = useQuery<{
+    estado: string; municipio: string; produto: string;
+    preco_medio_revenda: number; data_inicial: string; data_final: string;
+  }[]>({
+    queryKey: ['municipalities-suprimentos', cityStartDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/history/municipalities?start_date=${cityStartDate}`);
+      if (!res.ok) throw new Error('Failed to fetch municipality data');
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
+
+  // Pivot raw rows into FuelRecord[] for the city-level views/charts
+  const cityData = useMemo(() => {
+    const map = new Map<string, { estado: string; municipio: string; datas: string; etanol?: number; gasolina?: number }>();
+    for (const row of rawCityRows) {
+      const toDate = (s: string) => {
+        const parts = s.split('-');
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : new Date(s).toLocaleDateString('pt-BR');
+      };
+      const datas = `${toDate(row.data_inicial || row.data_final)} - ${toDate(row.data_final)}`;
+      const key = `${row.municipio}-${datas}`;
+      if (!map.has(key)) map.set(key, { estado: row.estado, municipio: row.municipio, datas });
+      const entry = map.get(key)!;
+      const prod = row.produto.toUpperCase();
+      if (prod.includes('ETANOL')) entry.etanol = row.preco_medio_revenda;
+      if (prod.includes('GASOLINA')) entry.gasolina = row.preco_medio_revenda;
+    }
+    const records: FuelRecord[] = [];
+    for (const entry of map.values()) {
+      if (entry.etanol != null && entry.gasolina != null) {
+        const rec = calculateRecord(entry.estado, entry.datas, entry.etanol, entry.gasolina);
+        rec.municipio = entry.municipio;
+        records.push(rec);
+      }
+    }
+    return records;
+  }, [rawCityRows]);
 
   const [selectedRegion, setSelectedRegion] = useState("TODAS");
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
@@ -129,9 +171,8 @@ export default function Suprimentos() {
         cityUrl += `start_date=${startDate}`;
       }
 
-      const [stateRes, cityRes] = await Promise.all([
+      const [stateRes] = await Promise.all([
         fetch(stateUrl),
-        fetch(cityUrl)
       ]);
 
       if (stateRes.ok) {
@@ -140,68 +181,6 @@ export default function Suprimentos() {
           setData(prev => {
             const existingSigs = new Set(prev.map(r => `${r.estado}-${r.datas}`));
             const newRecords = records.filter(r => !existingSigs.has(`${r.estado}-${r.datas}`));
-            return [...prev, ...newRecords];
-          });
-        }
-      }
-
-      if (cityRes.ok) {
-        const cityRows: { estado: string, municipio: string, produto: string, preco_medio_revenda: number, data_inicial: string, data_final: string }[] = await cityRes.json();
-
-        // Pivot city data: (municipio + datas) -> { etanol, gasolina }
-        const map = new Map<string, { estado: string, municipio: string, datas: string, etanol?: number, gasolina?: number }>();
-
-        for (const row of cityRows) {
-          // Data is already handled in backend but just in case it is a string like 2024-01-01
-          const dataFinalObj = row.data_final;
-          const dataInicialObj = row.data_inicial;
-
-          let dateStrFinal = "";
-          let dateStrInicial = "";
-
-          if (typeof dataFinalObj === 'string') {
-            const dtParts = dataFinalObj.split("-");
-            if (dtParts.length === 3) dateStrFinal = `${dtParts[2]}/${dtParts[1]}/${dtParts[0]}`;
-            else dateStrFinal = new Date(dataFinalObj).toLocaleDateString('pt-BR');
-          } else {
-            dateStrFinal = new Date(dataFinalObj).toLocaleDateString('pt-BR');
-          }
-
-          if (typeof dataInicialObj === 'string') {
-            const dtParts = dataInicialObj.split("-");
-            if (dtParts.length === 3) dateStrInicial = `${dtParts[2]}/${dtParts[1]}/${dtParts[0]}`;
-            else dateStrInicial = new Date(dataInicialObj).toLocaleDateString('pt-BR');
-          } else {
-            // handle if it is missing
-            dateStrInicial = dateStrFinal;
-          }
-
-          const datas = `${dateStrInicial} - ${dateStrFinal}`;
-          const key = `${row.municipio}-${datas}`;
-
-          if (!map.has(key)) {
-            map.set(key, { estado: row.estado, municipio: row.municipio, datas });
-          }
-
-          const entry = map.get(key)!;
-          const prod = row.produto.toUpperCase();
-          if (prod.includes("ETANOL")) entry.etanol = row.preco_medio_revenda;
-          if (prod.includes("GASOLINA")) entry.gasolina = row.preco_medio_revenda;
-        }
-
-        const newCityRecords: FuelRecord[] = [];
-        for (const entry of map.values()) {
-          if (entry.etanol != null && entry.gasolina != null) {
-            const rec = calculateRecord(entry.estado, entry.datas, entry.etanol, entry.gasolina);
-            rec.municipio = entry.municipio;
-            newCityRecords.push(rec);
-          }
-        }
-
-        if (newCityRecords.length > 0) {
-          setCityData(prev => {
-            const existingSigs = new Set(prev.map(r => `${r.municipio}-${r.datas}`));
-            const newRecords = newCityRecords.filter(r => !existingSigs.has(`${r.municipio}-${r.datas}`));
             return [...prev, ...newRecords];
           });
         }
@@ -340,15 +319,15 @@ export default function Suprimentos() {
                 {/* Bottom Filters: Searchable Municipality + Date Picker */}
                 <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
                   <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                    Município:
-                  </label>
-                  <MunicipalityMultiSelect
-                    options={municipalityOptions}
-                    value={selectedMunicipalityKeys}
-                    onChange={setSelectedMunicipalityKeys}
-                  />
-                </div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                      Município:
+                    </label>
+                    <MunicipalityMultiSelect
+                      options={municipalityOptions}
+                      value={selectedMunicipalityKeys}
+                      onChange={setSelectedMunicipalityKeys}
+                    />
+                  </div>
 
                   <div className="flex flex-col sm:flex-row gap-3 items-center w-full md:w-auto">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
