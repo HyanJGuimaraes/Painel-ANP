@@ -43,11 +43,17 @@ def load_data_to_db(df: pd.DataFrame, db_url: str, table_name: str = 'anp_histor
         if max_date is not None:
             max_db_dt = pd.to_datetime(max_date)
             # Filter df to only keep rows newer than what's in DB
-            df = df[df['data_final'] > max_db_dt]
-            print(f"Incremental Load: DB has data up to {max_db_dt.date()}. New rows to insert: {len(df)}")
+            new_df = df[df['data_final'] > max_db_dt]
+            
+            if len(new_df) < len(df):
+                skipped = len(df) - len(new_df)
+                print(f"[Incremental] Data in file ends at {df['data_final'].max().date()}. DB already has data up to {max_db_dt.date()}.")
+                print(f"[Incremental] Skipped {skipped} rows already present in DB.")
+            
+            df = new_df
             
         if df.empty:
-            print("No new data to load. Everything is up to date.")
+            print("[Incremental] No new data to load. Everything in this file is already in the database.")
             return
 
     try:
